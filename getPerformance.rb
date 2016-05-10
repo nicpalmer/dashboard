@@ -1,13 +1,21 @@
 # Calls the API to retrieve a list of skill summaries for all skills.
 
+require 'rest-client'
 require "base64"
 require "json"
+require "net/http"
 require "net/https"
 require "rubygems" # Needed on Mac.
 require "active_support"
 require "active_support/core_ext"
 
-def getPerformance(startDate="2016-05-01", endDate="2016-05-09")
+# This Global Variable uses the 'date' command to build ranges, current date time=00:00 and then current date up to 23:59
+# allowing us to iterate results over the day for graphing.
+
+$cmd1 = `date +%Y-%m-%dT00:00`
+$cmd2 = `date +%Y-%m-%dT23:59`
+
+def getPerformance(startDate=$cmd1.strip, endDate=$cmd2.strip)
 
 # Check that startDate is a string in yyyy-mm-ddThh:mm:ss+/-hh:mm form.
   unless startDate.is_a?(String) &&
@@ -56,13 +64,23 @@ def getPerformance(startDate="2016-05-01", endDate="2016-05-09")
 
   # The data the API returns is in JSON, so parse it if it's valid.
   data = if response.body != ""
-      JSON.parse(response.body)
-    else
-      "The response was empty."
+        JSON.parse(response.body)
+      else
+        "The response was empty."
+    end
+
+    # Now you can do something with the data the API returned.
   end
+  slaStates = getPerformance
+  $json = JSON.pretty_generate(slaStates)
 
-  # Now you can do something with the data the API returned.
-end
+  def sendToElastic
 
-slaStates = getPerformance
-puts JSON.pretty_generate(slaStates)
+  response = RestClient.get 'http://localhost:9200'
+  response
+
+  send = RestClient.post 'http://localhost:9200/index1/type1/', $json, {:content_type => :json}
+  send
+
+  end
+  puts sendToElastic
